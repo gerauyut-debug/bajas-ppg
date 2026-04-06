@@ -390,7 +390,15 @@ let prodRows=[];
 function sv(){localStorage.setItem('ppg_reg',JSON.stringify(registros));localStorage.setItem('ppg_cat',JSON.stringify(catalogo));localStorage.setItem('ppg_tnd',JSON.stringify(tiendas));localStorage.setItem('ppg_usr',JSON.stringify(usuarios));}
 function toast(msg,dur=2800){const t=document.getElementById('toast-main');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
 function isAdmin(){return currentRole==='admin';}
-function applyVis(){document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin()?'':'none');}
+function applyVis(){
+  document.querySelectorAll('.admin-only').forEach(el=>{
+    if(!isAdmin()){el.style.display='none';return;}
+    const tag=el.tagName.toLowerCase();
+    if(tag==='button'||tag==='select'||tag==='input')el.style.display='inline-block';
+    else if(tag==='td'||tag==='th')el.style.display='table-cell';
+    else el.style.display='block';
+  });
+}
 function getRegiones(){return[...new Set(tiendas.map(t=>t.region))].sort();}
 function mesLabel(ym){if(!ym)return'';const[y,m]=ym.split('-');return['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][parseInt(m)-1]+' '+y;}
 
