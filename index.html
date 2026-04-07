@@ -614,6 +614,7 @@ function generarPDF(){
   if(mes)data=data.filter(r=>r.fecha.startsWith(mes));
   if(reg)data=data.filter(r=>r.region===reg);
   if(!data.length){toast('Sin registros para generar el PDF');return;}
+  toast('Generando documento con evidencias...',5000);
 
   const tc=data.reduce((a,r)=>a+r.total,0);
   const tp=data.reduce((a,r)=>a+r.apoyo,0);
@@ -624,124 +625,162 @@ function generarPDF(){
   const mesTexto=mes?mesLabel(mes):'Todos los meses';
   const fecha=new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
 
-  const filas=data.map((r,i)=>{
-    const prods=r.productos.map(p=>`${p.sku} — ${p.desc} × ${p.qty} (PVP $${p.subPvp.toFixed(2)})`).join('<br>');
-    const evBadge=r.evidencias?.length>0?`<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:12px;font-size:11px">${r.evidencias.length} foto(s)</span>`:`<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:11px">Sin evidencia</span>`;
-    const esBadge=r.estatus==='Enviado'?`<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:12px;font-size:11px">Enviado</span>`:r.estatus==='En revisión'?`<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px">En revisión</span>`:`<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:11px">Pendiente</span>`;
-    return`<tr style="background:${i%2===0?'#ffffff':'#f9fafb'}">
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px">${r.fecha}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px"><strong>${r.tienda||'—'}</strong><br><span style="color:#6b7280;font-size:11px">${r.region||''}</span></td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px"><strong>${r.proyecto}</strong><br><span style="color:#6b7280;font-size:11px">${r.cliente||'—'}</span></td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px">${prods}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;color:#065f46;font-weight:600">$${(r.totalPvp||0).toFixed(2)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right">$${r.total.toFixed(2)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;color:#1d4ed8;font-weight:600">$${r.apoyo.toFixed(2)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;color:#065f46">${r.valorProyecto?'$'+r.valorProyecto.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${evBadge}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:center">${esBadge}</td>
-    </tr>`;
+  const secciones=data.map((r,i)=>{
+    const prods=r.productos.map(p=>`<tr><td style="padding:5px 8px;font-size:11px;font-family:monospace">${p.sku}</td><td style="padding:5px 8px;font-size:11px">${p.desc}</td><td style="padding:5px 8px;font-size:11px;text-align:center">${p.qty}</td><td style="padding:5px 8px;font-size:11px;text-align:right;color:#065f46">$${p.pvp?.toFixed(2)||'0.00'}</td><td style="padding:5px 8px;font-size:11px;text-align:right;color:#065f46;font-weight:600">$${p.subPvp?.toFixed(2)||'0.00'}</td><td style="padding:5px 8px;font-size:11px;text-align:right">$${p.costo?.toFixed(2)||'0.00'}</td><td style="padding:5px 8px;font-size:11px;text-align:right;color:#1d4ed8;font-weight:600">$${p.subtotal?.toFixed(2)||'0.00'}</td></tr>`).join('');
+    const fotos=r.evidencias&&r.evidencias.length
+      ?r.evidencias.map(src=>`<img src="${src}" style="width:160px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;margin:4px">`).join('')
+      :'<p style="font-size:11px;color:#9ca3af;font-style:italic;padding:8px 0">Sin evidencias fotográficas cargadas para esta demostración.</p>';
+    const esBadge=r.estatus==='Enviado'?'background:#d1fae5;color:#065f46':r.estatus==='En revisión'?'background:#dbeafe;color:#1e40af':'background:#fef3c7;color:#92400e';
+    return`<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:24px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:#1a1a18;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <p style="color:#fff;font-size:13px;font-weight:600">${r.proyecto}</p>
+          <p style="color:#9ca3af;font-size:11px;margin-top:2px">${r.cliente||'—'} · ${r.region||''} / ${r.tienda||''} · ${r.fecha}</p>
+        </div>
+        <span style="padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;${esBadge}">${r.estatus}</span>
+      </div>
+      <div style="padding:14px 16px">
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+          <thead><tr style="background:#f3f4f6">
+            <th style="padding:6px 8px;font-size:10px;font-weight:600;text-align:left;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">SKU</th>
+            <th style="padding:6px 8px;font-size:10px;font-weight:600;text-align:left;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Producto</th>
+            <th style="padding:6px 8px;font-size:10px;font-weight:600;text-align:center;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Pzas</th>
+            <th style="padding:6px 8px;font-size:10px;font-weight:600;text-align:right;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">PVP unit.</th>
+            <th style="padding:6px 8px;font-size:10px;font-weight:600;text-align:right;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Subtotal PVP</th>
+            <th style="padding:6px 8px;font-size:10px;font-weight:600;text-align:right;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Costo unit.</th>
+            <th style="padding:6px 8px;font-size:10px;font-weight:600;text-align:right;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Apoyo PPG</th>
+          </tr></thead>
+          <tbody>${prods}</tbody>
+          <tfoot><tr style="background:#f9fafb;border-top:1px solid #e5e7eb">
+            <td colspan="4" style="padding:7px 8px;font-size:11px;font-weight:700">Total demostración</td>
+            <td style="padding:7px 8px;font-size:11px;font-weight:700;text-align:right;color:#065f46">$${(r.totalPvp||0).toFixed(2)}</td>
+            <td style="padding:7px 8px;font-size:11px;font-weight:700;text-align:right">$${r.total.toFixed(2)}</td>
+            <td style="padding:7px 8px;font-size:11px;font-weight:700;text-align:right;color:#1d4ed8">$${r.apoyo.toFixed(2)}</td>
+          </tfoot>
+        </table>
+        ${r.valorProyecto?`<p style="font-size:11px;color:#065f46;margin-bottom:10px;padding:6px 10px;background:#f0fdf4;border-radius:6px;border-left:3px solid #059669">Valor del proyecto: <strong>$${r.valorProyecto.toLocaleString('es-MX',{minimumFractionDigits:2})}</strong>${r.potencial?' &nbsp;·&nbsp; Potencial adicional: <strong>$'+r.potencial.toLocaleString('es-MX',{minimumFractionDigits:2})+'</strong>':''}</p>`:''}
+        <p style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:8px">Evidencias fotográficas (${r.evidencias?.length||0} foto(s))</p>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${fotos}</div>
+      </div>
+    </div>`;
   }).join('');
+
+  const resumenFilas=data.map(r=>`<tr style="border-bottom:1px solid #f3f4f6">
+    <td style="padding:7px 10px;font-size:11px">${r.fecha}</td>
+    <td style="padding:7px 10px;font-size:11px;font-weight:600">${r.tienda||'—'}</td>
+    <td style="padding:7px 10px;font-size:11px">${r.proyecto}<br><span style="color:#9ca3af;font-size:10px">${r.cliente||'—'}</span></td>
+    <td style="padding:7px 10px;font-size:11px;text-align:right;color:#065f46;font-weight:600">$${(r.totalPvp||0).toFixed(2)}</td>
+    <td style="padding:7px 10px;font-size:11px;text-align:right">$${r.total.toFixed(2)}</td>
+    <td style="padding:7px 10px;font-size:11px;text-align:right;color:#1d4ed8;font-weight:600">$${r.apoyo.toFixed(2)}</td>
+    <td style="padding:7px 10px;font-size:11px;text-align:center"><span style="padding:2px 8px;border-radius:10px;font-size:10px;${(r.evidencias?.length||0)>0?'background:#d1fae5;color:#065f46':'background:#fee2e2;color:#991b1b'}">${r.evidencias?.length||0} foto(s)</span></td>
+  </tr>`).join('');
 
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
   <title>Reporte PPG Comex — ${mesTexto}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#111827;background:#fff;padding:32px}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid #111827}
-    .brand{display:flex;align-items:center;gap:10px}
-    .brand-dot{width:12px;height:12px;border-radius:50%;background:#059669}
-    h1{font-size:18px;font-weight:700;color:#111827}
-    .subtitle{font-size:12px;color:#6b7280;margin-top:3px}
-    .meta{text-align:right;font-size:12px;color:#6b7280}
-    .meta strong{color:#111827;font-size:13px;display:block;margin-bottom:3px}
-    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-    .met{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px}
-    .met-l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:6px}
-    .met-v{font-size:22px;font-weight:700;color:#111827}
-    .met-v.blue{color:#1d4ed8}.met-v.green{color:#065f46}
-    .met-s{font-size:10px;color:#9ca3af;margin-top:3px}
-    .alert{background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#1e40af}
-    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:28px}
-    thead tr{background:#111827}
-    th{padding:10px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff}
-    th:nth-child(5),th:nth-child(6),th:nth-child(7),th:nth-child(8){text-align:right}
-    .totals-row td{padding:10px;background:#f3f4f6;font-weight:700;border-top:2px solid #111827;font-size:12px}
-    .footer{border-top:1px solid #e5e7eb;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end}
-    .footer-left{font-size:11px;color:#6b7280;line-height:1.7}
-    .firma{border-top:1px solid #9ca3af;padding-top:8px;margin-top:40px;width:220px}
-    .firma p{font-size:11px;color:#6b7280}
-    @media print{body{padding:16px}@page{margin:1.5cm;size:A4 landscape}}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#111827;background:#fff;padding:28px;max-width:900px;margin:0 auto}
+    @media print{
+      body{padding:0;max-width:none}
+      .no-print{display:none}
+      @page{margin:1.5cm;size:A4}
+      .page-break{page-break-before:always}
+    }
   </style>
   </head><body>
-  <div class="header">
-    <div class="brand">
-      <div class="brand-dot"></div>
+
+  <div class="no-print" style="background:#1d4ed8;color:#fff;padding:14px 20px;border-radius:8px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <p style="font-weight:600;font-size:14px">Documento listo</p>
+      <p style="font-size:12px;opacity:.85;margin-top:2px">Usa Ctrl+P → Guardar como PDF para descargarlo</p>
+    </div>
+    <button onclick="window.print()" style="background:#fff;color:#1d4ed8;border:none;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer">Guardar como PDF</button>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #111827">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:12px;height:12px;border-radius:50%;background:#059669"></div>
       <div>
-        <h1>Relación de demostraciones a clientes</h1>
-        <p class="subtitle">Solicitud de nota de crédito · PPG Comex · ${mesTexto}</p>
+        <h1 style="font-size:17px;font-weight:700">Relación de demostraciones a clientes</h1>
+        <p style="font-size:11px;color:#6b7280;margin-top:3px">Solicitud de nota de crédito · PPG Comex · ${mesTexto}</p>
       </div>
     </div>
-    <div class="meta">
-      <strong>Fecha de emisión</strong>${fecha}
+    <div style="text-align:right;font-size:11px;color:#6b7280">
+      <strong style="color:#111827;font-size:12px;display:block;margin-bottom:2px">Fecha de emisión</strong>${fecha}
       ${reg?`<br>Región: ${reg}`:''}
     </div>
   </div>
 
-  <div class="metrics">
-    <div class="met"><div class="met-l">Total solicitudes</div><div class="met-v">${data.length}</div><div class="met-s">${tndSet.size} tienda(s)</div></div>
-    <div class="met"><div class="met-l">Costo total material</div><div class="met-v">$${tc.toFixed(2)}</div><div class="met-s">MXN</div></div>
-    <div class="met"><div class="met-l">Apoyo PPG solicitado</div><div class="met-v blue">$${tp.toFixed(2)}</div><div class="met-s">50% del costo</div></div>
-    <div class="met"><div class="met-l">Valor total proyectos</div><div class="met-v green">$${tv.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="met-s">PVP demostrado: $${tpvp.toFixed(2)}</div></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+      <p style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:5px">Solicitudes</p>
+      <p style="font-size:20px;font-weight:700">${data.length}</p>
+      <p style="font-size:9px;color:#9ca3af;margin-top:2px">${tndSet.size} tienda(s)</p>
+    </div>
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+      <p style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin-bottom:5px">Costo total</p>
+      <p style="font-size:20px;font-weight:700">$${tc.toFixed(2)}</p>
+      <p style="font-size:9px;color:#9ca3af;margin-top:2px">MXN</p>
+    </div>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px">
+      <p style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#93c5fd;margin-bottom:5px">Apoyo PPG solicitado</p>
+      <p style="font-size:20px;font-weight:700;color:#1d4ed8">$${tp.toFixed(2)}</p>
+      <p style="font-size:9px;color:#93c5fd;margin-top:2px">50% del costo</p>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px">
+      <p style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#86efac;margin-bottom:5px">Valor total proyectos</p>
+      <p style="font-size:20px;font-weight:700;color:#065f46">$${tv.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</p>
+      <p style="font-size:9px;color:#86efac;margin-top:2px">PVP: $${tpvp.toFixed(2)}</p>
+    </div>
   </div>
 
-  <div class="alert">Solicitudes con evidencia fotográfica: <strong>${conEv} de ${data.length}</strong>${data.length-conEv>0?' — Faltan '+(data.length-conEv)+' solicitud(es) por documentar.':' — Todas las demostraciones están documentadas.'}</div>
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:6px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#1e40af">
+    Evidencias fotográficas: <strong>${conEv} de ${data.length}</strong> demostraciones documentadas.${data.length-conEv>0?' Faltan '+(data.length-conEv)+' por documentar.':' Todas completas.'}
+  </div>
 
-  <table>
-    <thead><tr>
-      <th>Fecha</th><th>Tienda</th><th>Proyecto / cliente</th><th>Productos utilizados</th>
-      <th style="text-align:right">PVP total</th><th style="text-align:right">Costo total</th>
-      <th style="text-align:right">Apoyo PPG</th><th style="text-align:right">Valor proyecto</th>
-      <th style="text-align:center">Evidencias</th><th style="text-align:center">Estatus</th>
+  <p style="font-size:13px;font-weight:700;margin-bottom:10px;color:#111827">Resumen consolidado</p>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:28px;font-size:12px">
+    <thead><tr style="background:#111827">
+      <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff">Fecha</th>
+      <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff">Tienda</th>
+      <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff">Proyecto / cliente</th>
+      <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff">PVP total</th>
+      <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff">Costo total</th>
+      <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff">Apoyo PPG</th>
+      <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#fff">Evidencias</th>
     </tr></thead>
-    <tbody>${filas}</tbody>
-    <tfoot><tr class="totals-row">
-      <td colspan="4">TOTALES</td>
-      <td style="text-align:right;color:#065f46">$${tpvp.toFixed(2)}</td>
-      <td style="text-align:right">$${tc.toFixed(2)}</td>
-      <td style="text-align:right;color:#1d4ed8">$${tp.toFixed(2)}</td>
-      <td style="text-align:right;color:#065f46">$${tv.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      <td colspan="2"></td>
+    <tbody>${resumenFilas}</tbody>
+    <tfoot><tr style="background:#f3f4f6;border-top:2px solid #111827">
+      <td colspan="3" style="padding:8px 10px;font-size:11px;font-weight:700">TOTALES</td>
+      <td style="padding:8px 10px;font-size:11px;font-weight:700;text-align:right;color:#065f46">$${tpvp.toFixed(2)}</td>
+      <td style="padding:8px 10px;font-size:11px;font-weight:700;text-align:right">$${tc.toFixed(2)}</td>
+      <td style="padding:8px 10px;font-size:11px;font-weight:700;text-align:right;color:#1d4ed8">$${tp.toFixed(2)}</td>
+      <td></td>
     </tr></tfoot>
   </table>
 
-  <div class="footer">
-    <div class="footer-left">
+  <p style="font-size:13px;font-weight:700;margin-bottom:14px;color:#111827" class="page-break">Detalle por demostración con evidencias fotográficas</p>
+  ${secciones}
+
+  <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:8px;display:flex;justify-content:space-between;align-items:flex-end">
+    <div style="font-size:10px;color:#6b7280;line-height:1.8">
       <p>El presente documento detalla las bajas de mercancía realizadas para demostraciones a clientes</p>
-      <p>durante el período indicado, conforme al acuerdo de apoyo al <strong>50% del precio costo</strong> con PPG Comex.</p>
-      <p style="margin-top:6px">Documento generado el ${fecha} · Sistema de Bajas PPG Comex</p>
+      <p>conforme al acuerdo de apoyo al <strong>50% del precio costo</strong> vigente con PPG Comex.</p>
+      <p style="margin-top:4px">Generado el ${fecha} · Sistema de Bajas PPG Comex</p>
     </div>
-    <div>
-      <div class="firma">
-        <p>Nombre y firma del Regional</p>
-        <p style="margin-top:4px">Cargo: ____________________________</p>
-      </div>
+    <div style="border-top:1px solid #9ca3af;padding-top:8px;margin-top:40px;width:200px;text-align:center">
+      <p style="font-size:10px;color:#6b7280">Nombre y firma del Regional</p>
     </div>
   </div>
-  <script>window.onload=function(){window.print();}<\/script>
   </body></html>`;
 
-  const blob=new Blob([html],{type:'text/html'});
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
-  const win=window.open(url,'_blank');
-  if(!win){
-    const a=document.createElement('a');a.href=url;
-    a.download=`reporte_ppg_${mes||'todos'}.html`;a.click();
-    toast('Reporte descargado — ábrelo en el navegador e imprime como PDF');
-  } else {
-    toast('Reporte abierto — usa Ctrl+P para guardar como PDF');
-  }
-  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`Reporte_PPG_${mesTexto.replace(/ /g,'_')}_${new Date().toISOString().slice(0,10)}.html`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),15000);
+  toast('Documento descargado — ábrelo y haz clic en "Guardar como PDF"');
 }
 </script>
-</body>
-</html>
